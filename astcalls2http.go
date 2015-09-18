@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
 	"net"
-	"time"
 
-	gami "code.google.com/p/gami"
+	"net/url"
 )
 
 var (
@@ -16,95 +16,72 @@ var (
 	debug                          bool = false
 )
 
-func init() {
-	flag.IntVar(&port, "port", 5038, "AMI port")
-	flag.StringVar(&host, "host", "localhost", "AMI host")
-	flag.StringVar(&user, "user", "admin", "AMI user")
-	flag.StringVar(&password, "password", "admin", "AMI secret")
-	flag.StringVar(&endpoint, "endpoint", "http://localhost:3000/calls", "Endpoint issues API for calls")
-	flag.Parse()
-}
+func executeCommand(nivis_ami_uri, command string) ([]string, error) {
+	result := []string{}
 
-func printEvents(messages []gami.Message) {
-	for index, m := range messages {
-		event, _ := m["Event"]
-		if event == "CoreShowChannel" {
-			fmt.Println(fmt.Sprintf("Index %3d Event %10s Extension %10s ConnectedLineNum %10s CallerIDnum %10s ChannelStateDesc %10s ID %15s BridguedID %15s %s",
-				index,
-				m["Event"],
-				m["Extension"],
-				m["ConnectedLineNum"],
-				m["CallerIDnum"],
-				m["ChannelStateDesc"],
-				m["UniqueID"],
-				m["BridgedUniqueID"],
-				m["Channel"]))
-		}
-		// fmt.Println(m)
+	fmt.Println("C1")
 
+	u, err := url.Parse(nivis_ami_uri)
+	if err != nil {
+		return result, err
 	}
+	fmt.Println("C2")
+	password, _ := u.User.Password()
+	user := u.User.Username()
+	hostPort := fmt.Sprintf("%s:%d", u.Host, 5038)
 
+	c, err := net.Dial("tcp", hostPort)
+	if err != nil {
+		return result, err
+	}
+	defer c.Close()
+	fmt.Println("C3")
+
+	fmt.Fprintf(c, "Action: login\r\n")
+	fmt.Fprintf(c, "Username: %s\r\n", user)
+	fmt.Fprintf(c, "Secret: %s\r\n", password)
+	fmt.Fprintf(c, "\r\n")
+	fmt.Println("C4")
+
+	fmt.Fprintf(c, "Action: command\r\n")
+	fmt.Fprintf(c, "Command: %s\r\n", command)
+	fmt.Fprintf(c, "\r\n")
+	fmt.Println("C5")
+
+	connbuf := bufio.NewReader(c)
+	for {
+		str, err := connbuf.ReadString('\n')
+		fmt.Println("C6", str)
+		if len(str) > 0 {
+			if str == "--END COMMAND--\r\n" {
+				break
+			}
+			result = append(result, str)
+		}
+		if err != nil {
+			return []string{}, err
+		}
+	}
+	return result, nil
 }
 
 func main() {
-	c, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+	var amiURI, command string
 
+	fmt.Println("E1")
+	flag.StringVar(&amiURI, "amiuri", "ami://user:pass@host", "AMI uri")
+	flag.StringVar(&command, "command", "sip show peers", "command to execute")
+	flag.Parse()
+	fmt.Println("E2")
+	commandResult, err := executeCommand(amiURI, command)
+	fmt.Println("E3")
 	if err != nil {
-		log.Fatal(err)
+		log.Panic("Error", err)
+		return
 	}
-	defer c.Close()
+	fmt.Println("E4")
+	for _, l := range commandResult {
+		fmt.Println("Linea", l)
 
-	g := gami.NewAsterisk(&c, nil)
-	err = g.Login(user, password)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	lastId := ""
-	buffer := []gami.Message{}
-
-	handler := func(m gami.Message) {
-		actionId, ok := m["ActionID"]
-		if ok {
-
-			if actionId == lastId {
-				buffer = append(buffer, m)
-			} else {
-				printEvents(buffer)
-				lastId = actionId
-				buffer = []gami.Message{}
-				buffer = append(buffer, m)
-			}
-		}
-
-	}
-
-	g.DefaultHandler(&handler)
-
-	//---------
-	go func() {
-		for {
-			ping(g)
-			time.Sleep(10 * time.Second)
-		}
-	}()
-
-	for {
-		m := gami.Message{"Action": "CoreShowChannels"} // gami.Message simple alias on map[string]string
-		g.SendAction(m, nil)
-		time.Sleep(1 * time.Second)
-	}
-
-	g.Logoff()
-}
-
-func ping(a *gami.Asterisk) {
-	m := gami.Message{"Action": "Ping"}
-	cb := func(m gami.Message) {
-		fmt.Println(m)
-	}
-	err := a.SendAction(m, &cb)
-	if err != nil {
-		log.Fatal(err)
 	}
 }
