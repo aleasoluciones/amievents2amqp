@@ -46,8 +46,10 @@ type Event struct {
 func receiveEvents(nivis_ami_uri string, events chan (Event)) error {
 	c, err := connectToManager(nivis_ami_uri)
 	if err != nil {
+		log.Println("Error", err)
 		return err
 	}
+
 	defer c.Close()
 
 	connbuf := bufio.NewReader(c)
