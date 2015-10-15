@@ -7,8 +7,12 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 
+	"encoding/json"
 	"net/url"
+
+	"github.com/cenkalti/backoff"
 )
 
 var (
@@ -17,42 +21,43 @@ var (
 	debug                          bool = false
 )
 
-func executeCommand(nivis_ami_uri, command string) ([]string, error) {
-	result := []string{}
-
+func connectToManager(nivis_ami_uri string) (net.Conn, error) {
 	fmt.Println("C1")
-
 	u, err := url.Parse(nivis_ami_uri)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
-	fmt.Println("C2")
 	password, _ := u.User.Password()
 	user := u.User.Username()
 	hostPort := fmt.Sprintf("%s:%d", u.Host, 5038)
 
 	c, err := net.Dial("tcp", hostPort)
 	if err != nil {
-		return result, err
+		return c, err
 	}
-	defer c.Close()
-	fmt.Println("C3")
-
 	fmt.Fprintf(c, "Action: login\r\n")
 	fmt.Fprintf(c, "Username: %s\r\n", user)
 	fmt.Fprintf(c, "Secret: %s\r\n", password)
 	fmt.Fprintf(c, "\r\n")
-	fmt.Println("C4")
+
+	return c, err
+}
+
+func executeCommand(nivis_ami_uri, command string) ([]string, error) {
+	result := []string{}
+	c, err := connectToManager(nivis_ami_uri)
+	if err != nil {
+		return result, err
+	}
+	defer c.Close()
 
 	fmt.Fprintf(c, "Action: command\r\n")
 	fmt.Fprintf(c, "Command: %s\r\n", command)
 	fmt.Fprintf(c, "\r\n")
-	fmt.Println("C5")
 
 	connbuf := bufio.NewReader(c)
 	for {
 		str, err := connbuf.ReadString('\n')
-		fmt.Println("C6", str)
 		if len(str) > 0 {
 			if str == "--END COMMAND--\r\n" {
 				break
@@ -66,37 +71,31 @@ func executeCommand(nivis_ami_uri, command string) ([]string, error) {
 	return result, nil
 }
 
-func receiveEvents(nivis_ami_uri string) error {
-	result := []string{}
+type Event struct {
+	Timestamp int64
+	Data      map[string]string
+}
 
-	u, err := url.Parse(nivis_ami_uri)
-	if err != nil {
-		return err
-	}
-	password, _ := u.User.Password()
-	user := u.User.Username()
-	hostPort := fmt.Sprintf("%s:%d", u.Host, 5038)
-
-	c, err := net.Dial("tcp", hostPort)
+func receiveEvents(nivis_ami_uri string, events chan (Event)) error {
+	c, err := connectToManager(nivis_ami_uri)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
 
-	fmt.Fprintf(c, "Action: login\r\n")
-	fmt.Fprintf(c, "Username: %s\r\n", user)
-	fmt.Fprintf(c, "Secret: %s\r\n", password)
-	fmt.Fprintf(c, "\r\n")
-
 	connbuf := bufio.NewReader(c)
+	data := make(map[string]string)
 	for {
 		str, err := connbuf.ReadString('\n')
+		str = strings.TrimSpace(str)
 		if len(str) > 0 {
-			if str == "--END COMMAND--\r\n" {
-				break
+			r := strings.SplitN(str, ":", 2)
+			if len(r) == 2 {
+				data[r[0]] = r[1]
 			}
-			result = append(result, str)
-			fmt.Println("EFA", strings.TrimSpace(str))
+		} else {
+			events <- Event{time.Now().Unix(), data}
+			data = make(map[string]string)
 		}
 		if err != nil {
 			return err
@@ -114,13 +113,27 @@ func main() {
 	flag.Parse()
 	fmt.Println("E2")
 
+	events := make(chan (Event), 1)
+
 	//commandResult, err := executeCommand(amiURI, command)
-	err := receiveEvents(amiURI)
-	fmt.Println("E3")
-	if err != nil {
-		log.Panic("Error", err)
-		return
+
+	go func() {
+		operation := func() error {
+			return receiveEvents(amiURI, events)
+		}
+
+		err := backoff.Retry(operation, backoff.NewExponentialBackOff())
+		if err != nil {
+			log.Panic("Error", err)
+			return
+		}
+	}()
+
+	for e := range events {
+		jsonSerialized, _ := json.Marshal(e)
+		fmt.Println("Event", string(jsonSerialized))
 	}
+
 	fmt.Println("E4")
 
 }
