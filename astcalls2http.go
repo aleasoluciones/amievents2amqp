@@ -6,23 +6,18 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"strings"
 	"time"
 
 	"encoding/json"
 	"net/url"
 
+	"github.com/aleasoluciones/simpleamqp"
 	"github.com/cenkalti/backoff"
 )
 
-var (
-	host, user, password, endpoint string
-	port                           int
-	debug                          bool = false
-)
-
 func connectToManager(nivis_ami_uri string) (net.Conn, error) {
-	fmt.Println("C1")
 	u, err := url.Parse(nivis_ami_uri)
 	if err != nil {
 		return nil, err
@@ -41,34 +36,6 @@ func connectToManager(nivis_ami_uri string) (net.Conn, error) {
 	fmt.Fprintf(c, "\r\n")
 
 	return c, err
-}
-
-func executeCommand(nivis_ami_uri, command string) ([]string, error) {
-	result := []string{}
-	c, err := connectToManager(nivis_ami_uri)
-	if err != nil {
-		return result, err
-	}
-	defer c.Close()
-
-	fmt.Fprintf(c, "Action: command\r\n")
-	fmt.Fprintf(c, "Command: %s\r\n", command)
-	fmt.Fprintf(c, "\r\n")
-
-	connbuf := bufio.NewReader(c)
-	for {
-		str, err := connbuf.ReadString('\n')
-		if len(str) > 0 {
-			if str == "--END COMMAND--\r\n" {
-				break
-			}
-			result = append(result, str)
-		}
-		if err != nil {
-			return []string{}, err
-		}
-	}
-	return result, nil
 }
 
 type Event struct {
@@ -104,19 +71,26 @@ func receiveEvents(nivis_ami_uri string, events chan (Event)) error {
 	return nil
 }
 
-func main() {
-	var amiURI, command string
+func defaultBrokerUri() string {
+	brokerUri := os.Getenv("BROKER_URI")
 
-	fmt.Println("E1")
+	if len(brokerUri) == 0 {
+		brokerUri = "amqp://guest:guest@localhost/"
+	}
+
+	return brokerUri
+}
+
+func main() {
+	var amiURI, amqpURI, exchange, topic string
+
 	flag.StringVar(&amiURI, "amiuri", "ami://user:pass@host", "AMI uri")
-	flag.StringVar(&command, "command", "sip show peers", "command to execute")
+	flag.StringVar(&amqpURI, "amqpuri", defaultBrokerUri(), "AMQP connection uri")
+	flag.StringVar(&exchange, "exchange", "events", "AMQP exchange name")
+	flag.StringVar(&topic, "topic", "astevents", "topic")
 	flag.Parse()
-	fmt.Println("E2")
 
 	events := make(chan (Event), 1)
-
-	//commandResult, err := executeCommand(amiURI, command)
-
 	go func() {
 		operation := func() error {
 			return receiveEvents(amiURI, events)
@@ -129,9 +103,11 @@ func main() {
 		}
 	}()
 
+	amqpPublisher := simpleamqp.NewAmqpPublisher(amqpURI, exchange)
 	for e := range events {
 		jsonSerialized, _ := json.Marshal(e)
 		fmt.Println("Event", string(jsonSerialized))
+		amqpPublisher.Publish(topic, []byte(jsonSerialized))
 	}
 
 	fmt.Println("E4")
