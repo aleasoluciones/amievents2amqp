@@ -17,8 +17,8 @@ import (
 	"github.com/cenkalti/backoff"
 )
 
-func connectToManager(nivis_ami_uri string) (net.Conn, error) {
-	u, err := url.Parse(nivis_ami_uri)
+func connectToManager(nivisAmiURI string) (net.Conn, error) {
+	u, err := url.Parse(nivisAmiURI)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +43,8 @@ type Event struct {
 	Data      map[string]string
 }
 
-func receiveEvents(nivis_ami_uri string, events chan (Event)) error {
-	c, err := connectToManager(nivis_ami_uri)
+func receiveEvents(nivisAmiURI string, events chan (Event)) error {
+	c, err := connectToManager(nivisAmiURI)
 	if err != nil {
 		log.Println("Error", err)
 		return err
@@ -70,24 +70,23 @@ func receiveEvents(nivis_ami_uri string, events chan (Event)) error {
 			return err
 		}
 	}
-	return nil
 }
 
-func defaultBrokerUri() string {
-	brokerUri := os.Getenv("BROKER_URI")
+func defaultBrokerURI() string {
+	brokerURI := os.Getenv("BROKER_URI")
 
-	if len(brokerUri) == 0 {
-		brokerUri = "amqp://guest:guest@localhost/"
+	if len(brokerURI) == 0 {
+		brokerURI = "amqp://guest:guest@localhost/"
 	}
 
-	return brokerUri
+	return brokerURI
 }
 
 func main() {
 	var amiURI, amqpURI, exchange, topic string
 
 	flag.StringVar(&amiURI, "amiuri", "ami://user:pass@host", "AMI uri")
-	flag.StringVar(&amqpURI, "amqpuri", defaultBrokerUri(), "AMQP connection uri")
+	flag.StringVar(&amqpURI, "amqpuri", defaultBrokerURI(), "AMQP connection uri")
 	flag.StringVar(&exchange, "exchange", "events", "AMQP exchange name")
 	flag.StringVar(&topic, "topic", "astevents", "topic")
 	flag.Parse()
