@@ -1,0 +1,7 @@
+{{ component }}:
+  image: aleasoluciones/{{ component }}:{{ gitrevision }}
+  restart: always
+  command: issues
+  environment:
+   BROKER_URI: {{ operations_broker_uri }}
+
