@@ -60,7 +60,9 @@ func receiveEvents(nivisAmiURI string, events chan (Event)) error {
 		if len(str) > 0 {
 			r := strings.SplitN(str, ":", 2)
 			if len(r) == 2 {
-				data[r[0]] = r[1]
+				key := strings.TrimSpace(r[0])
+				value := strings.TrimSpace(r[1])
+				data[key] = value
 			}
 		} else {
 			events <- Event{time.Now().Unix(), data}
