@@ -74,24 +74,14 @@ func receiveEvents(nivisAmiURI string, events chan (Event)) error {
 	}
 }
 
-func defaultBrokerURI() string {
-	brokerURI := os.Getenv("BROKER_URI")
-
-	if len(brokerURI) == 0 {
-		brokerURI = "amqp://guest:guest@localhost/"
-	}
-
-	return brokerURI
-}
-
 func main() {
-	var amiURI, amqpURI, exchange, topic string
-
-	flag.StringVar(&amiURI, "amiuri", "ami://user:pass@host", "AMI uri")
-	flag.StringVar(&amqpURI, "amqpuri", defaultBrokerURI(), "AMQP connection uri")
+	var exchange, topic string
 	flag.StringVar(&exchange, "exchange", "events", "AMQP exchange name")
 	flag.StringVar(&topic, "topic", "astevents", "topic")
 	flag.Parse()
+
+	amiURI := os.Getenv("AMI_URI")
+	amqpURI := os.Getenv("BROKER_URI")
 
 	events := make(chan (Event), 1)
 	go func() {
@@ -109,10 +99,6 @@ func main() {
 	amqpPublisher := simpleamqp.NewAmqpPublisher(amqpURI, exchange)
 	for e := range events {
 		jsonSerialized, _ := json.Marshal(e)
-		fmt.Println("Event", string(jsonSerialized))
 		amqpPublisher.Publish(topic, []byte(jsonSerialized))
 	}
-
-	fmt.Println("E4")
-
 }
