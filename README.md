@@ -34,4 +34,4 @@ $ asterisk -r
 asterisk> core restart when convenient
 ```
 
-WARNING: Do not forget to remove your ip after development!
+*WARNING:* Do not forget to remove your ip after development!
