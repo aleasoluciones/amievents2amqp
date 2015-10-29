@@ -1,5 +1,14 @@
 # amievents2amqp
 
+## Deployment
+This component is deployed within the issues component. You need to build and release a new image:
+
+```
+$ ssh -t root@mamut release.sh -r amievents2amqp -g `git rev-parse --short HEAD`
+```
+
+Then go to the issues repository, update the amievents2amqp image tag to the last commit in docker-compose, and deploy issues.
+
 ## Development
 
 To connect to the asterisk manager you need to grant access from your ip.
