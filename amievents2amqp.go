@@ -38,6 +38,7 @@ func connectToManager(nivisAmiURI string) (net.Conn, error) {
 	return c, err
 }
 
+// Event AMI event type, including timestamp and all the event data as a string to string map
 type Event struct {
 	Timestamp int64
 	Data      map[string]string
