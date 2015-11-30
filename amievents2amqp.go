@@ -17,6 +17,10 @@ import (
 	"github.com/cenkalti/backoff"
 )
 
+const (
+	AMI_TIMEOUT = 5 * time.Second
+)
+
 func connectToManager(nivisAmiURI string) (net.Conn, error) {
 	u, err := url.Parse(nivisAmiURI)
 	if err != nil {
@@ -72,6 +76,39 @@ func receiveEvents(nivisAmiURI string, events chan (Event)) error {
 		if err != nil {
 			return err
 		}
+	}
+}
+
+func sipShowPeers(nivisAmiURI string) (int, error) {
+	u, err := url.Parse(nivisAmiURI)
+	if err != nil {
+		return 0, err
+	}
+	password, _ := u.User.Password()
+	user := u.User.Username()
+	hostPort := fmt.Sprintf("%s:%d", u.Host, 5038)
+
+	c, err := net.Dial("tcp", hostPort)
+	if err != nil {
+		return 0, err
+	}
+	defer c.Close()
+
+	fmt.Fprintf(c, "Action: login\r\n")
+	fmt.Fprintf(c, "Username: %s\r\n", user)
+	fmt.Fprintf(c, "Secret: %s\r\n", password)
+	fmt.Fprintf(c, "Events: off\r\n")
+	fmt.Fprintf(c, "\r\n")
+
+	fmt.Fprintf(c, "Action: command\r\n")
+	fmt.Fprintf(c, "Command: sip show peers\r\n")
+	fmt.Fprintf(c, "\r\n")
+
+	c.SetReadDeadline(time.Now().Add(AMI_TIMEOUT))
+	connbuf := bufio.NewReader(c)
+	for {
+		str, err := connbuf.ReadString('\n')
+		log.Println("Ami read:", strings.TrimSpace(str), err)
 	}
 }
 
