@@ -23,7 +23,7 @@ const (
 	AMI_TIMEOUT = 5 * time.Second
 )
 
-func connectToManager(nivisAmiURI string) (net.Conn, error) {
+func connectToManager(nivisAmiURI string, events bool) (net.Conn, error) {
 	u, err := url.Parse(nivisAmiURI)
 	if err != nil {
 		return nil, err
@@ -39,6 +39,9 @@ func connectToManager(nivisAmiURI string) (net.Conn, error) {
 	fmt.Fprintf(c, "Action: login\r\n")
 	fmt.Fprintf(c, "Username: %s\r\n", user)
 	fmt.Fprintf(c, "Secret: %s\r\n", password)
+	if !events {
+		fmt.Fprintf(c, "Events: off\r\n")
+	}
 	fmt.Fprintf(c, "\r\n")
 
 	return c, err
@@ -51,7 +54,7 @@ type Event struct {
 }
 
 func receiveEvents(nivisAmiURI string, events chan (Event)) error {
-	c, err := connectToManager(nivisAmiURI)
+	c, err := connectToManager(nivisAmiURI, true)
 	if err != nil {
 		log.Println("Error", err)
 		return err
@@ -82,23 +85,11 @@ func receiveEvents(nivisAmiURI string, events chan (Event)) error {
 }
 
 func sipShowPeers(nivisAmiURI string) (int, error) {
-	u, err := url.Parse(nivisAmiURI)
+	c, err := connectToManager(nivisAmiURI, false)
 	if err != nil {
+		log.Println("Error", err)
 		return 0, err
 	}
-	password, _ := u.User.Password()
-	user := u.User.Username()
-	hostPort := fmt.Sprintf("%s:%d", u.Host, 5038)
-	c, err := net.Dial("tcp", hostPort)
-	if err != nil {
-		return 0, err
-	}
-	defer c.Close()
-	fmt.Fprintf(c, "Action: login\r\n")
-	fmt.Fprintf(c, "Username: %s\r\n", user)
-	fmt.Fprintf(c, "Secret: %s\r\n", password)
-	fmt.Fprintf(c, "Events: off\r\n")
-	fmt.Fprintf(c, "\r\n")
 
 	fmt.Fprintf(c, "Action: command\r\n")
 	fmt.Fprintf(c, "Command: sip show peers\r\n")
