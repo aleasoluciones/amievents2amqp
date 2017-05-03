@@ -4,7 +4,7 @@
 This component is deployed within the issues component. You need to build and release a new image:
 
 ```
-$ ssh -t root@mamut release.sh -r amievents2amqp -g `git rev-parse --short HEAD`
+$ ssh -t asur@mamut release.sh -r amievents2amqp -g `git rev-parse --short HEAD`
 ```
 
 Then go to the issues repository, update the amievents2amqp image tag to the last commit in docker-compose, and deploy issues.
@@ -16,13 +16,13 @@ To connect to the asterisk manager you need to grant access from your ip.
 First connect to the asterisk machine via ssh:
 
 ```
-$ ssh root@ale-niv1
+$ ssh asur@ale-niv1
 ```
 
 Edit the manager configuration:
 
 ```
-$ vim /opt/bos/asterisk/etc/manager_custom.conf
+$ sudo vim /opt/bos/asterisk/etc/manager_custom.conf
 ```
 
 It looks similar to:
@@ -39,7 +39,7 @@ write = system,call,log,verbose,command,agent,user
 Just add a new item to the `permit` line and restart asterisk:
 
 ```
-$ asterisk -r
+$ sudo asterisk -r
 asterisk> core restart when convenient
 ```
 
