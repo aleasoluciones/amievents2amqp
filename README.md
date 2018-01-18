@@ -4,7 +4,7 @@
 This component is deployed within the issues component. You need to build and release a new image:
 
 ```
-$ ssh -t asur@mamut release.sh -r amievents2amqp -g `git rev-parse --short HEAD`
+$ ssh -t asur@mamut release.sh -r amievents2amqp -g `git rev-parse --short=7 HEAD`
 ```
 
 Then go to the issues repository, update the amievents2amqp image tag to the last commit in docker-compose, and deploy issues.
