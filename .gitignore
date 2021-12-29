@@ -25,3 +25,9 @@ _testmain.go
 
 # JetBrains products
 .idea
+
+# vim
+tags
+
+# binaries
+amievents2amqp
