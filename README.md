@@ -1,6 +1,6 @@
 # amievents2amqp
 
-This program connects to an remote Asterisk server by TCP, then it asks Asterisk to receive the Asterisk generated event. Then for each event, it publish it to the given AMQP broker.
+This program connects to an remote Asterisk server by TCP port 5038, then it asks Asterisk to receive the Asterisk generated event. Then for each event, it publish it to the given AMQP broker.
 
 ```
 Usage of /amievents2amqp:
