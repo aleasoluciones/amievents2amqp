@@ -1,6 +1,22 @@
 # amievents2amqp
 
+This program connects to an remote Asterisk server by TCP, then it asks Asterisk to receive the Asterisk generated event. Then for each event, it publish it to the given AMQP broker.
+
+```
+Usage of /amievents2amqp:
+  -amiURI string
+        AMI connection URI (use AMI_URI env var as default)
+  -amqpURI string
+        AMQP connection URI (use BROKER_URI env var as default)
+  -exchange string
+        AMQP exchange name (default "events")
+  -topic string
+        topic (default "astevents")
+
+```
+
 ## Deployment
+
 This component is deployed within the issues component. You need to build and release a new image:
 
 ```
