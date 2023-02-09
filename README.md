@@ -32,7 +32,7 @@ To connect to the asterisk manager you need to grant access from your ip.
 First connect to the asterisk machine via ssh:
 
 ```
-$ ssh asur@ale-niv1
+$ ssh asur@lab-niv1
 ```
 
 Edit the manager configuration:
@@ -60,3 +60,4 @@ asterisk> core restart when convenient
 ```
 
 *WARNING:* Do not forget to remove your ip after development!
+Keep in mind lab-niv1 is asterisk11 version and this aplication is based in asterisk13. It is possible some events are not well processed. The only server with right asterisk version is a production one (ale-extension1)
